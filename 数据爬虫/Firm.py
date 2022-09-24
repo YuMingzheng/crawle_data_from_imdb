@@ -39,10 +39,9 @@ class Firm:
         if flag:
             self.crawlFirmInfo(self.firmID)
 
-    # 在构造的时候就应该爬到该Person全部的信息
+    # 在构造的时候就应该爬到该Firm全部的信息
     def crawlFirmInfo(self, ID):
         import pandas as pd
-        print("crawlFirmInfo...of ", self.firmName)
         import requests
         from bs4 import BeautifulSoup
         import re

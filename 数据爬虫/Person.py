@@ -6,6 +6,7 @@ warnings.filterwarnings('ignore')
 def procBox(string) -> float:
     # moneyType = 1 if string[0] == '$' else -1
     return float(string[1:].replace("," , ""))
+
 def justGetBox(ID)->float:
     import requests
     from bs4 import BeautifulSoup
@@ -55,7 +56,7 @@ def getAllRelateMovie(soup):
 
 class Person:
 
-    def __init__(self , name : str , ID : str):
+    def __init__(self , name : str , ID : str , flag = True):
         print("__init__...")
         self.personName = name  # 人名
         self.personID = ID      # 人的ID
@@ -70,7 +71,8 @@ class Person:
         self.writeFilm = []  # 编剧的电影
         self.produceFilm = []  # 发行的电影
 
-        self.crawlPersonInfo(self.personID)
+        if flag:
+            self.crawlPersonInfo(self.personID)
 
     # 在构造的时候就应该爬到该Person全部的信息
     def crawlPersonInfo(self , ID):

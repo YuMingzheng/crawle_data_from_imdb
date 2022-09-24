@@ -3,7 +3,6 @@ import json
 import requests
 import re
 from bs4 import BeautifulSoup
-import pandas as pd
 
 import Firm
 import Person
@@ -28,7 +27,12 @@ def crawleOneFilm(IMDBID : str):
 
     soup = BeautifulSoup(resp.text , "html.parser")
 
-    filmName = soup.find("h1" , attrs={"data-testid":"hero-title-block__title"}).text
+    try:
+        filmName = soup.find("h1" , attrs={"data-testid":"hero-title-block__title"}).text
+    except AttributeError as e:
+        saveLog("IMDB ID: " + IMDBID + "找不到电影名字")
+        return None
+
     film = Film.Film(filmName , IMDBID)
 
     # release date
@@ -123,7 +127,7 @@ def findGenres(soup) -> list:
         return result
     except AttributeError as e:
         saveLog(e.args)
-        return []
+        return [""]
 
 def findBoxoffice(soup) -> float:
     try:
@@ -138,63 +142,162 @@ def procBox(string) -> float:
     return float(string[1:].replace("," , ""))
 
 def getFullCredits(IMDBID) -> dict:
+    with open("./ing_data/person.json") as f:
+        person_json = json.load(f)
+
+    fullList = {
+        'actor': [],
+        'director': [],
+        'writer': []
+        # 'producer':[]
+    }
     url = "https://www.imdb.com/title/"+IMDBID+"/fullcredits"
     header = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
     }
-    resp = requests.get(url = url , headers = header)
+    try:
+        resp = requests.get(url = url , headers = header)
+    except ConnectionError as e:
+        saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+        return fullList
     resp.raise_for_status()
-    # resp.encoding = resp.apparent_encoding
 
     soup = BeautifulSoup(resp.text)
+    try:
+        title_l = soup.find("div", attrs={'id': 'fullcredits_content'}).find_all("h4")
+        table_l = soup.find("div", attrs={'id': 'fullcredits_content'}).find_all("table")
+    except AttributeError as e:
+        saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+        return fullList
 
-    fullList = {
-        'actor':[],
-        'director':[],
-        'writer':[]
-        # 'producer':[]
-    }
-    title_l = soup.find("div", attrs={'id': 'fullcredits_content'}).find_all("h4")
-    table_l = soup.find("div", attrs={'id': 'fullcredits_content'}).find_all("table")
     if len(title_l) != len(table_l):
-        saveLog("IMDBID: " + IMDBID + ", 在获取fullcredit时发生两个list长度不相等的问题\n")
+        saveLog(" IMDBID: " + IMDBID + ", 在获取fullcredit时发生两个list长度不相等的问题\n")
         return fullList
 
     actor_list = []
     directer_list = []
     writer_list = []
-    # producer_list = []
+
     for i , u in enumerate(title_l):
         text = re.sub("\(.*\)" , "" , u.text).strip()
         if text == "Cast":
             c_odd_list = table_l[i].find_all("tr" , attrs={"class" : "odd"})
             c_even_list = table_l[i].find_all("tr" , attrs={"class" : "even"})
             for j,v in enumerate(c_odd_list):
-                name = v.find_all("td")[1].text.strip()
-                ID = re.findall('nm\d*' , v.find_all("a")[1].attrs.get("href"))[0]
-                actor_list.append(Person.Person(name , ID))
+                try:
+                    name = v.find_all("td")[1].text.strip()
+                    ID = re.findall('nm\d*' , v.find_all("a")[1].attrs.get("href"))[0]
+                    if ID not in person_json.keys():
+                        person = Person.Person(name, ID)
+                        temp = {
+                            "actor": person.totalActorFilmBox,
+                            "director": person.totalDirectFilmBox,
+                            "writer": person.totalWriteFilmBox
+                        }
+                        person_json[ID] = temp
+
+                        with open("./ing_data/person.json" , "w") as f:
+                            json.dump(person_json , f)
+                    else:
+                        person = Person.Person(name , ID , False)
+                        person.totalActorFilmBox = person_json[ID]["actor"]
+                        person.totalDirectFilmBox = person_json[ID]["director"]
+                        person.totalWriteFilmBox = person_json[ID]["writer"]
+                    actor_list.append(person)
+                except AttributeError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
+                except ConnectionError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
+
             for j,v in enumerate(c_even_list):
-                name = v.find_all("td")[1].text.strip()
-                ID = re.findall('nm\d*' , v.find_all("a")[1].attrs.get("href"))[0]
-                actor_list.append(Person.Person(name , ID))
+                try:
+                    name = v.find_all("td")[1].text.strip()
+                    ID = re.findall('nm\d*' , v.find_all("a")[1].attrs.get("href"))[0]
+                    if ID not in person_json.keys():
+                        person = Person.Person(name, ID)
+                        temp = {
+                            "actor": person.totalActorFilmBox,
+                            "director": person.totalDirectFilmBox,
+                            "writer": person.totalWriteFilmBox
+                        }
+                        person_json[ID] = temp
+
+                        with open("./ing_data/person.json", "w") as f:
+                            json.dump(person_json, f)
+                    else:
+                        person = Person.Person(name, ID, False)
+                        person.totalActorFilmBox = person_json[ID]["actor"]
+                        person.totalDirectFilmBox = person_json[ID]["director"]
+                        person.totalWriteFilmBox = person_json[ID]["writer"]
+                    actor_list.append(person)
+
+                except AttributeError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
+                except ConnectionError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
 
         elif text == "Directed by":
             d_tr_list = table_l[i].find_all("tr")
             for j, v in enumerate(d_tr_list):
-                name = v.find("a").text.strip()
-                ID = re.findall('nm\d*', v.find("a").attrs.get("href"))[0]
-                person = Person.Person(name, ID)
-                directer_list.append(person)
+                try:
+                    name = v.find("a").text.strip()
+                    ID = re.findall('nm\d*', v.find("a").attrs.get("href"))[0]
+                    if ID not in person_json.keys():
+                        person = Person.Person(name, ID)
+                        temp = {
+                            "actor": person.totalActorFilmBox,
+                            "director" : person.totalDirectFilmBox,
+                            "writer" : person.totalWriteFilmBox
+                        }
+                        person_json[ID] = temp
+                        with open("./ing_data/person.json", "w") as f:
+                            json.dump(person_json, f)
+                    else:
+                        person = Person.Person(name, ID, False)
+                        person.totalActorFilmBox = person_json[ID]["actor"]
+                        person.totalDirectFilmBox = person_json[ID]["director"]
+                        person.totalWriteFilmBox = person_json[ID]["writer"]
+                    directer_list.append(person)
+                except AttributeError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
+                except ConnectionError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
 
         elif text == "Writing Credits":
             w_tr_list = table_l[i].find_all("tr")
             for j, v in enumerate(w_tr_list):
-                name = v.find("a").text.strip()
-                ID = re.findall('nm\d*', v.find("a").attrs.get("href"))[0]
-                person = Person.Person(name, ID)
-                writer_list.append(person)
+                try:
+                    name = v.find("a").text.strip()
+                    ID = re.findall('nm\d*', v.find("a").attrs.get("href"))[0]
+                    if ID not in person_json.keys():
+                        person = Person.Person(name, ID)
+                        temp = {
+                            "actor": person.totalActorFilmBox,
+                            "director": person.totalDirectFilmBox,
+                            "writer": person.totalWriteFilmBox
+                        }
+                        person_json[ID] = temp
+                        with open("./ing_data/person.json", "w") as f:
+                            json.dump(person_json, f)
+                    else:
+                        person = Person.Person(name, ID, False)
+                        person.totalActorFilmBox = person_json[ID]["actor"]
+                        person.totalDirectFilmBox = person_json[ID]["director"]
+                        person.totalWriteFilmBox = person_json[ID]["writer"]
+                    writer_list.append(person)
+                except AttributeError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
+                except ConnectionError as e:
+                    saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
+                    continue
 
-            pass
         # elif text == "Produced by":
         #     # p_tr_list = table_l[i].find_all("tr")
         #     # for j, v in enumerate(p_tr_list):
@@ -219,11 +322,22 @@ def getFullComp(IMDBID) -> dict:
     header = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
     }
-    resp = requests.get(url=url, headers=header)
+    try:
+        resp = requests.get(url=url, headers=header)
+    except ConnectionError as e:
+        saveLog(" IMDBID : " + IMDBID + "在找FullComp时 , Error : " + e.args[0])
+        return {'production': [],'distributors': []}
+
     resp.raise_for_status()
+
     soup = BeautifulSoup(resp.text)
 
-    soup_content = soup.find("div" , attrs = {"id":"company_credits_content"})
+    try:
+        soup_content = soup.find("div" , attrs = {"id":"company_credits_content"})
+    except AttributeError as e:
+        saveLog(" IMDBID : " + IMDBID + " 时找不到company_credits_content, Error : " + e.args[0])
+        return {'production': [], 'distributors': []}
+
     soup_h4 = soup_content.find_all("h4" , recursive= False)
     soup_ul = soup_content.find_all("ul" , recursive= False)
 
@@ -272,5 +386,5 @@ def getFullComp(IMDBID) -> dict:
 
 
 # info =  getFullComp("tt7362036")
-#
+# print(info)
 # i = 1

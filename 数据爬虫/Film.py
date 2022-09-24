@@ -14,7 +14,7 @@ class Film:
         self.totalActorBox = 0  # 所有主演的票房总收入
         self.totalDirectBox = 0  # 所有导演的票房总收入
         self.totalWriteBox = 0  # 所有编剧的票房总收入
-        self.totalProducBox = 0  # 所有发行人的票房总收入
+        # self.totalProducBox = 0  # 所有发行人的票房总收入
         self.totalProducFirmBox = 0  # 所有制作公司的票房总收入
         self.totalDistributeFirmBox = 0  # 所有发行公司的票房总收入
 
@@ -35,8 +35,8 @@ class Film:
     def addWriter(self , writer):
         self.writerList.append(writer)
 
-    def addProducer(self , producer):
-        self.producerList.append(producer)
+    # def addProducer(self , producer):
+    #     self.producerList.append(producer)
 
     def calcTotalActorBox(self):
         temp = 0
@@ -55,12 +55,12 @@ class Film:
         for i in self.writerList:
             temp += i.totalWriteFilmBox
         self.totalWriteBox = temp
-
-    def calcTotalProducBox(self):
-        temp = 0
-        for i in self.producerList:
-            temp += i.totalProduceFilmBox
-        self.totalProducBox = temp
+    #
+    # def calcTotalProducBox(self):
+    #     temp = 0
+    #     for i in self.producerList:
+    #         temp += i.totalProduceFilmBox
+    #     self.totalProducBox = temp
 
     def clacTotalProducFirmBox(self):
         temp = 0
@@ -78,7 +78,7 @@ class Film:
         self.calcTotalActorBox()
         self.calcTotalDirectBox()
         self.calcTotalWriteBox()
-        self.calcTotalProducBox()
+        # self.calcTotalProducBox()
         self.clacTotalProducFirmBox()
         self.calcTotalDistributeFirmBox()
 
@@ -96,5 +96,7 @@ class Film:
 
     def __str__(self):
         return "Name:" + self.filmName + ",ID:" + self.filmID
+
+
 
 
