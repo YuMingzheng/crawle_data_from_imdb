@@ -1,5 +1,6 @@
 # from ProcessOneFilm import procBox
 from saveLog import saveLog
+import time
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -12,11 +13,24 @@ def justGetBox(ID)->float:
     from bs4 import BeautifulSoup
     url = "https://www.imdb.com/title/" + ID  # 拼接得到URL
     header = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36"
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+        "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+        'cookie': 'uu=eyJpZCI6InV1Yzc2M2Q0ZWI2YmQ3NGRiZGFmM2EiLCJwcmVmZXJlbmNlcyI6eyJmaW5kX2luY2x1ZGVfYWR1bHQiOmZhbHNlfX0=; adblk=adblk_no; session-id=132-5398336-5861824; session-id-time=2082787201l; ubid-main=134-4497815-6177129; session-token=VuAAEN7JmW2km1JuyfTtrf0mKknQ+XG/SVU+EhOyEepD0XraTZhxdwfK0jX1ru8rzjz7DUeE/JT98u6Sj8nrZxHKXsBcAK6wmSQzJaYyWSmS3olZPaw0sdYpGiG6s5zG3qRYREK7dyt92g7/lEQH5MoalaR4/9LdcXxtVMFsB6TmvDni3+lVggpCh8k17mLYaPuGe9eRHt+AHLwXQeuRdg==; csm-hit=tb:M6XPNMWR67C4FRHDZE47+s-M6XPNMWR67C4FRHDZE47|1664064346523&t:1664064346523&adb:adblk_no',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1'
     }
-    resp = requests.get(url=url, headers=header)
+    try:
+        resp = requests.get(url=url, headers=header)
+    except requests.exceptions.ConnectionError as e:
+        time.sleep(10)
+        resp = requests.get(url=url, headers=header)
     resp.raise_for_status()
-    # resp.encoding = resp.apparent_encoding
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -38,7 +52,7 @@ def getAllRelateMovie(soup):
     all_movie = soup.find_all("div" , recursive= False)
     df = pd.DataFrame(columns=["ID" , "Name" , "Box"])
     for i, v in enumerate(all_movie):
-        print("  i = " , i)
+        # print("  i = " , i)
         try:
             if 2016 < int(v.find("span").text.strip()) < 2022:
                 temp_dict = {
@@ -57,7 +71,7 @@ def getAllRelateMovie(soup):
 class Person:
 
     def __init__(self , name : str , ID : str , flag = True):
-        print("__init__...")
+        # print("__init__...")
         self.personName = name  # 人名
         self.personID = ID      # 人的ID
 
@@ -76,7 +90,7 @@ class Person:
 
     # 在构造的时候就应该爬到该Person全部的信息
     def crawlPersonInfo(self , ID):
-        print("crawlPersonInfo...of " , self.personName)
+        print("  crawlPersonInfo...of " , self.personName)
         import requests
         from bs4 import BeautifulSoup
 
@@ -84,7 +98,11 @@ class Person:
         header = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
         }
-        resp = requests.get(url=url, headers=header)
+        try:
+            resp = requests.get(url=url, headers=header)
+        except requests.exceptions.ConnectionError as e:
+            time.sleep(10)
+            resp = requests.get(url=url, headers=header)
         resp.raise_for_status()
         # resp.encoding = resp.apparent_encoding
 
@@ -93,20 +111,20 @@ class Person:
         l = soup.find("div" , attrs = {"id":"filmography"}).find_all("div" , recursive= False)
         for i , v in enumerate(l):
             if v.attrs.get('id') == "filmo-head-actor" or v.attrs.get('id') == "filmo-head-actress":
-                print("actor..")
+                # print("   actor..")
                 df = getAllRelateMovie(l[i+1])
                 self.actorFilm.append(df)
-                self.totalActorFilmBox = df["Box"].mean()
+                self.totalActorFilmBox = df["Box"].sum()
             elif v.attrs.get('id') == "filmo-head-director":
-                print("director..")
+                # print("   director..")
                 df = getAllRelateMovie(l[i+1])
                 self.directFilm.append(df)
-                self.totalDirectFilmBox = df["Box"].mean()
+                self.totalDirectFilmBox = df["Box"].sum()
             elif v.attrs.get('id') == "filmo-head-writer":
-                print("writer..")
+                # print("   writer..")
                 df = getAllRelateMovie(l[i+1])
                 self.writeFilm.append(df)
-                self.totalWriteFilmBox = df["Box"].mean()
+                self.totalWriteFilmBox = df["Box"].sum()
             # elif v.attrs.get('id') == "filmo-head-producer":
             #     print("producer...")
             #     df = getAllRelateMovie(l[i+1])

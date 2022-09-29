@@ -1,4 +1,5 @@
 import json
+import time
 
 import requests
 import re
@@ -21,9 +22,13 @@ def crawleOneFilm(IMDBID : str):
         "user-agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
         "sec-ch-us" : '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"'
     }
-    resp = requests.get(url = url , headers = header)
+    try:
+        resp = requests.get(url = url , headers = header)
+    except requests.exceptions.ConnectionError as e:
+        time.sleep(10)
+        resp = requests.get(url=url, headers=header)
     resp.raise_for_status()
-    resp.encoding = resp.apparent_encoding
+    # resp.encoding = resp.apparent_encoding
 
     soup = BeautifulSoup(resp.text , "html.parser")
 
@@ -32,7 +37,7 @@ def crawleOneFilm(IMDBID : str):
     except AttributeError as e:
         saveLog("IMDB ID: " + IMDBID + "找不到电影名字")
         return None
-
+    print("  电影名字：" + filmName)
     film = Film.Film(filmName , IMDBID)
 
     # release date
@@ -93,9 +98,9 @@ def crawleOneFilm(IMDBID : str):
 
 def findReleaseDate(soup) -> str:
     try:
-        return soup.find("section" , attrs={"data-testid":"Details"}).find("li" , attrs = {"data-testid":"title-details-releasedate"}).find("div").text
+        return soup.find("section" , attrs={"data-testid":"Details"}).find("li" , attrs = {"data-testid":"title-details-releasedate"}).find("div").text.replace("," , " ")
     except AttributeError as e:
-        saveLog(e.args)
+        saveLog(e.args[0])
         return ""
 
 def findDuration(soup) -> int:
@@ -113,7 +118,7 @@ def procRawDuartion(string) -> int:
     :return: -1 表示有错误
     '''
     try:
-        li = string.replace("minutes" , "").split("hour")
+        li = re.split(r"hours|hour" , string.replace(" " , "").replace("minutes" , ""))
         return eval(li[0]) * 60 + eval(li[1])
     except IndexError as e:
         saveLog(e.args)
@@ -134,7 +139,7 @@ def findBoxoffice(soup) -> float:
         raw_box = soup.find("section" , attrs = {"data-testid":"BoxOffice"}).find("li" , attrs = {"data-testid":"title-boxoffice-cumulativeworldwidegross"}).find("ul").text
         return procBox(raw_box)
     except AttributeError as e:
-        saveLog(e.args)
+        saveLog(e.args[0])
         return 0.0
 
 def procBox(string) -> float:
@@ -156,10 +161,10 @@ def getFullCredits(IMDBID) -> dict:
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
     }
     try:
-        resp = requests.get(url = url , headers = header)
-    except ConnectionError as e:
-        saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
-        return fullList
+        resp = requests.get(url=url, headers=header)
+    except requests.exceptions.ConnectionError as e:
+        time.sleep(10)
+        resp = requests.get(url=url, headers=header)
     resp.raise_for_status()
 
     soup = BeautifulSoup(resp.text)
@@ -179,8 +184,8 @@ def getFullCredits(IMDBID) -> dict:
     writer_list = []
 
     for i , u in enumerate(title_l):
-        text = re.sub("\(.*\)" , "" , u.text).strip()
-        if text == "Cast":
+        text = u.attrs.get("id")
+        if text == "cast":
             c_odd_list = table_l[i].find_all("tr" , attrs={"class" : "odd"})
             c_even_list = table_l[i].find_all("tr" , attrs={"class" : "even"})
             for j,v in enumerate(c_odd_list):
@@ -240,7 +245,7 @@ def getFullCredits(IMDBID) -> dict:
                     saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
                     continue
 
-        elif text == "Directed by":
+        elif text == "director":
             d_tr_list = table_l[i].find_all("tr")
             for j, v in enumerate(d_tr_list):
                 try:
@@ -269,7 +274,7 @@ def getFullCredits(IMDBID) -> dict:
                     saveLog(" IMDBID : " + IMDBID + " , Error : " + e.args[0])
                     continue
 
-        elif text == "Writing Credits":
+        elif text == "writer":
             w_tr_list = table_l[i].find_all("tr")
             for j, v in enumerate(w_tr_list):
                 try:
@@ -324,9 +329,9 @@ def getFullComp(IMDBID) -> dict:
     }
     try:
         resp = requests.get(url=url, headers=header)
-    except ConnectionError as e:
-        saveLog(" IMDBID : " + IMDBID + "在找FullComp时 , Error : " + e.args[0])
-        return {'production': [],'distributors': []}
+    except requests.exceptions.ConnectionError as e:
+        time.sleep(10)
+        resp = requests.get(url=url, headers=header)
 
     resp.raise_for_status()
 
@@ -385,6 +390,6 @@ def getFullComp(IMDBID) -> dict:
 
 
 
-# info =  getFullComp("tt7362036")
+# info =  getFullCredits("tt2109248")
 # print(info)
 # i = 1

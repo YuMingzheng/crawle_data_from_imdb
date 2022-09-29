@@ -1,4 +1,5 @@
 from saveLog import saveLog
+import time
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -12,7 +13,11 @@ def justGetBox(ID)->float:
     header = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36"
     }
-    resp = requests.get(url=url, headers=header)
+    try:
+        resp = requests.get(url=url, headers=header)
+    except requests.exceptions.ConnectionError as e:
+        time.sleep(10)
+        resp = requests.get(url=url, headers=header)
     resp.raise_for_status()
     # resp.encoding = resp.apparent_encoding
 
@@ -50,7 +55,11 @@ class Firm:
         header = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
         }
-        resp = requests.get(url=url, headers=header)
+        try:
+            resp = requests.get(url=url, headers=header)
+        except requests.exceptions.ConnectionError as e:
+            time.sleep(10)
+            resp = requests.get(url=url, headers=header)
         resp.raise_for_status()
         # resp.encoding = resp.apparent_encoding
 
@@ -74,7 +83,7 @@ class Firm:
             movie_list = movie_list.append(temp , ignore_index=True)
         movie_list = movie_list[movie_list['Box'] != 0]
         self.film.append(movie_list)
-        self.totalFilmBox = movie_list["Box"].mean()
+        self.totalFilmBox = movie_list["Box"].sum()
 
 
     # def calcTotalProdFilmBox(self):
