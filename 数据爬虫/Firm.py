@@ -1,6 +1,7 @@
 from saveLog import saveLog
 import time
 import warnings
+import json
 warnings.filterwarnings('ignore')
 
 def procBox(string) -> float:
@@ -9,7 +10,7 @@ def procBox(string) -> float:
 def justGetBox(ID)->float:
     import requests
     from bs4 import BeautifulSoup
-    url = "https://www.imdb.com/title/" + ID  # 拼接得到URL
+    url = "https://www.imdb.com/title/" + ID
     header = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36"
     }
@@ -19,7 +20,6 @@ def justGetBox(ID)->float:
         time.sleep(10)
         resp = requests.get(url=url, headers=header)
     resp.raise_for_status()
-    # resp.encoding = resp.apparent_encoding
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -37,10 +37,9 @@ class Firm:
         self.firmID = ID       # 公司的IMDB的ID
 
         self.totalFilmBox = 0  # 该公司所prod的所有电影的票房
-        # self.totalDistribBox = 0  # 该公司所distrib的所有电影的票房
 
         self.film = []  # 该公司prod的电影list
-        # self.distributeFilm = []  # 该公司distrib的电影的list
+
         if flag:
             self.crawlFirmInfo(self.firmID)
 
@@ -51,7 +50,7 @@ class Firm:
         from bs4 import BeautifulSoup
         import re
 
-        url = "https://www.imdb.com/search/title/?companies=" + ID + "&sort=boxoffice_gross_us,desc"
+        url = "https://www.imdb.com/search/title/?companies=" + ID + "&sort=year,desc"
         header = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36",
         }
@@ -61,46 +60,37 @@ class Firm:
             time.sleep(10)
             resp = requests.get(url=url, headers=header)
         resp.raise_for_status()
-        # resp.encoding = resp.apparent_encoding
 
         soup = BeautifulSoup(resp.text)
 
-        _total_film = soup.find("div" , attrs = {"class" : "article"}).find("div" , attrs = {"class" : "desc"}).text
-        _total_film = int(re.findall("\d* titles" , _total_film)[0].replace(" titles" , ""))
         main_soup = soup.find("div" , attrs = {"class" : "article"})
         list_soup = main_soup.find("div" , attrs = {"class" : "lister-list"}).find_all("div" , recursive= False)
 
         movie_list = pd.DataFrame(columns=["ID" , "Name" , "Box"])
         for i , v in enumerate(list_soup):
-            if i > 9:
-                break
-            temp = {
-                "ID": re.findall("tt\d*",v.find("div", attrs={"class": "lister-item-content"}).find("h3").find("a").attrs.get("href"))[0],
-                "Name":v.find("div", attrs={"class": "lister-item-content"}).find("h3").find("a").text,
-                "Box": ""
-            }
-            temp["Box"] = justGetBox(temp["ID"])
-            movie_list = movie_list.append(temp , ignore_index=True)
+            year_l = re.findall(r"\d{4}" , v.find("h3").find("span" , attrs = {"class":"lister-item-year text-muted unbold"}).text.strip())
+            if len(year_l) == 0:
+                continue
+            year = int(year_l[0])
+            if 2016 < year < 2022:
+                temp = {
+                    "ID": re.findall(r"tt\d+",v.find("div", attrs={"class": "lister-item-content"}).find("h3").find("a").attrs.get("href"))[0],
+                    "Name":v.find("div", attrs={"class": "lister-item-content"}).find("h3").find("a").text,
+                    "Box": 0.0
+                }
+                with open("./ing_data/film.json") as f:
+                        current_film = json.load(f)
+                if temp['ID'] not in current_film.keys():
+                    temp["Box"] = justGetBox(temp["ID"])
+                    current_film[temp['ID']] = temp['Box']
+                    with open('./ing_data/film.json', 'w') as file:
+                        json.dump(current_film, file)
+                else :
+                    temp['Box'] = current_film[temp['ID']]
+                movie_list = movie_list.append(temp , ignore_index=True)
         movie_list = movie_list[movie_list['Box'] != 0]
         self.film.append(movie_list)
         self.totalFilmBox = movie_list["Box"].sum()
-
-
-    # def calcTotalProdFilmBox(self):
-    #     temp = 0
-    #     for i in self.productFilm:
-    #         temp += i.grossBoxoffice
-    #     self.totalProdFilmBox = temp
-    #
-    # def calcTotalDistribBox(self):
-    #     temp = 0
-    #     for i in self.distributeFilm:
-    #         temp += i.grossBoxoffice
-    #     self.totalDistribBox = temp
-    #
-    # def calcAll(self):
-    #     self.calcTotalProdFilmBox()
-    #     self.calcTotalDistribBox()
 
 
     def __str__(self):

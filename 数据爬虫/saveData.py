@@ -18,11 +18,7 @@ def save_film_data(film , path, filename):
         str(film.grossBoxoffice),
         str(film.totalActorBox),
         str(film.totalDirectBox),
-        str(film.totalWriteBox),
-        # str(self.totalProducBox),
-        str(film.totalProducFirmBox),
-        str(film.totalDistributeFirmBox)
-
+        str(film.totalProducFirmBox)
     ]
     print(data_l)
 
